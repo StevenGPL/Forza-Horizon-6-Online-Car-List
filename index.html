@@ -17,6 +17,11 @@
             scrollbar-width: none;
         }
     </style>
+    <script type="module">
+        // Vercel Web Analytics
+        import { inject } from './analytics.js';
+        inject();
+    </script>
 </head>
 
 <body class="bg-gray-100 text-gray-800 p-6">

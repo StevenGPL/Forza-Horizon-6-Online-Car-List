@@ -1,0 +1,22 @@
+{
+  "name": "forza-horizon-6-online-car-list",
+  "version": "1.0.0",
+  "description": "Forza Horizon car collection tracker",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx http-server -p 3000",
+    "build": "echo 'Static site - no build required'",
+    "test": "echo 'No tests configured'"
+  },
+  "keywords": [
+    "forza",
+    "horizon",
+    "cars",
+    "tracker"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/analytics": "^1.1.1"
+  }
+}
