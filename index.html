@@ -33,6 +33,10 @@
             white-space: pre-line;
         }
 
+        .car-image {
+            cursor: pointer;
+        }
+
         @media (max-width: 1024px) {
             .car-table {
                 min-width: 1120px;
@@ -43,11 +47,11 @@
 
 <body class="bg-gray-100 text-gray-800 p-2 sm:p-4 md:p-6">
 
-    <div class="w-full max-w-[1024px] mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
+    <div class="w-full max-w-[1280px] mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
 
         <div class="p-3 md:p-4 bg-gray-50 border-b flex flex-col gap-3 lg:flex-row lg:justify-between lg:items-center">
             <div class="flex items-baseline gap-3 flex-wrap">
-                <h1 class="text-lg md:text-xl font-bold">地平线车辆清单</h1>
+                <h1 class="text-lg md:text-xl font-bold">地平线6车辆清单</h1>
                 <p id="collectionSummary" class="text-sm text-gray-600">已收集：0 / 0</p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -55,15 +59,15 @@
                     class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium transition">
                     当前排序: 英文品牌排序
                 </button>
-                <button onclick="exportData()"
+                <button id="openExportModalBtn"
                     class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-medium transition">
                     导出数据
                 </button>
-                <label
-                    class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium transition cursor-pointer">
+                <button id="openImportModalBtn"
+                    class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium transition">
                     导入数据
-                    <input type="file" id="importInput" accept=".json" class="hidden" onchange="importData(event)">
-                </label>
+                </button>
+                <input type="file" id="importInput" accept=".json" class="hidden">
             </div>
         </div>
 
@@ -128,6 +132,28 @@
         <img id="imageModalPreview" src="" alt="" class="max-w-[95vw] max-h-[90vh] object-contain rounded shadow-2xl">
     </div>
 
+    <div id="exportChoiceModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white w-full max-w-sm rounded-lg shadow-xl p-4">
+            <h3 class="text-base font-semibold mb-3">导出数据</h3>
+            <div class="flex flex-col gap-2">
+                <button id="exportCopyBtn" class="px-3 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white text-sm">复制到剪贴板</button>
+                <button id="exportFileBtn" class="px-3 py-2 rounded bg-indigo-500 hover:bg-indigo-600 text-white text-sm">导出为文件</button>
+                <button id="exportCancelBtn" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="importChoiceModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white w-full max-w-sm rounded-lg shadow-xl p-4">
+            <h3 class="text-base font-semibold mb-3">导入数据</h3>
+            <div class="flex flex-col gap-2">
+                <button id="importClipboardBtn" class="px-3 py-2 rounded bg-green-500 hover:bg-green-600 text-white text-sm">从剪贴板导入</button>
+                <button id="importFileBtn" class="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-sm">从文件导入</button>
+                <button id="importCancelBtn" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">取消</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const rarityStyles = {
             '普通': 'bg-[#009b48] text-white',
@@ -167,8 +193,21 @@
         function getOptimizedImageSrc(originalPath) {
             if (!originalPath) return '';
             const normalized = originalPath.replace(/^\.\//, '/');
-            // Cloudflare Image Resizing: 传输时按约 1/8 尺寸下发。
-            return `/cdn-cgi/image/width=167,quality=94,format=webp${normalized}`;
+            // Cloudflare Image Resizing: 传输时按约 1/4 尺寸下发。
+            return `/cdn-cgi/image/width=335,quality=188,format=webp${normalized}`;
+        }
+
+        function formatCrValue(value) {
+            if (value === '' || value === null || value === undefined) return '';
+            if (typeof value === 'number') return value.toLocaleString('en-US');
+
+            const text = String(value).trim();
+            if (text === '' || text === '?') return text;
+            const numeric = Number(text.replace(/,/g, ''));
+            if (!Number.isNaN(numeric) && Number.isFinite(numeric)) {
+                return numeric.toLocaleString('en-US');
+            }
+            return text;
         }
 
         function toggleCar(id, checked) {
@@ -306,7 +345,7 @@
                         <td class="p-2 md:p-3 border-l border-gray-300">${car.name || ''}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300 text-center">${car.year || ''}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300">${car.how_to_get || ''}</td>
-                        <td class="p-2 md:p-3 border-l border-gray-300 text-right">${car.cr ?? ''}</td>
+                        <td class="p-2 md:p-3 border-l border-gray-300 text-right">${formatCrValue(car.cr)}</td>
                         <td class="p-2 md:p-3 border-l border-white border-r text-center ${rarityStyle} font-medium">${car.rarity || ''}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300 text-center">${car.country || ''}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300 text-center font-bold ${scoreColor}">${car.initial_score || ''}</td>
@@ -334,23 +373,67 @@
             URL.revokeObjectURL(url);
         }
 
+        async function copyDataToClipboard() {
+            const data = localStorage.getItem(LOCAL_STORAGE_KEY) || '{}';
+            try {
+                await navigator.clipboard.writeText(data);
+                alert('已复制到剪贴板。');
+            } catch (error) {
+                alert('复制失败，请检查浏览器剪贴板权限。');
+            }
+        }
+
+        function importFromText(rawText) {
+            try {
+                const parsed = JSON.parse(rawText);
+                if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+                    throw new Error('invalid type');
+                }
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
+                renderTable();
+                alert('数据导入成功！');
+                return true;
+            } catch (error) {
+                alert('导入失败：数据格式错误，已取消导入。');
+                return false;
+            }
+        }
+
         function importData(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
             reader.onload = function (e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
-                    renderTable();
-                    alert('数据导入成功！');
-                } catch (error) {
-                    alert('文件格式错误，导入失败！');
-                }
+                importFromText(e.target.result);
                 event.target.value = '';
             };
             reader.readAsText(file);
+        }
+
+        function openSimpleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSimpleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function importFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (!text || !text.trim()) {
+                    alert('导入失败：剪贴板为空，已取消导入。');
+                    return;
+                }
+                importFromText(text);
+            } catch (error) {
+                alert('读取剪贴板失败，请检查浏览器权限。');
+            }
         }
 
         async function initApp() {
@@ -425,6 +508,47 @@
 
         document.getElementById('imageModal').addEventListener('click', closeImageModal);
         document.getElementById('imageModalPreview').addEventListener('click', closeImageModal);
+
+        document.getElementById('openExportModalBtn').addEventListener('click', () => openSimpleModal('exportChoiceModal'));
+        document.getElementById('openImportModalBtn').addEventListener('click', () => openSimpleModal('importChoiceModal'));
+
+        document.getElementById('exportCopyBtn').addEventListener('click', async () => {
+            await copyDataToClipboard();
+            closeSimpleModal('exportChoiceModal');
+        });
+
+        document.getElementById('exportFileBtn').addEventListener('click', () => {
+            exportData();
+            closeSimpleModal('exportChoiceModal');
+        });
+
+        document.getElementById('exportCancelBtn').addEventListener('click', () => closeSimpleModal('exportChoiceModal'));
+
+        document.getElementById('importClipboardBtn').addEventListener('click', async () => {
+            await importFromClipboard();
+            closeSimpleModal('importChoiceModal');
+        });
+
+        document.getElementById('importFileBtn').addEventListener('click', () => {
+            closeSimpleModal('importChoiceModal');
+            document.getElementById('importInput').click();
+        });
+
+        document.getElementById('importCancelBtn').addEventListener('click', () => closeSimpleModal('importChoiceModal'));
+
+        document.getElementById('importInput').addEventListener('change', importData);
+
+        document.getElementById('exportChoiceModal').addEventListener('click', (event) => {
+            if (event.target.id === 'exportChoiceModal') {
+                closeSimpleModal('exportChoiceModal');
+            }
+        });
+
+        document.getElementById('importChoiceModal').addEventListener('click', (event) => {
+            if (event.target.id === 'importChoiceModal') {
+                closeSimpleModal('importChoiceModal');
+            }
+        });
 
         document.getElementById('toggleSortBtn').innerText = '当前排序: 中文品牌排序';
 
