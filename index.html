@@ -43,12 +43,12 @@
 
 <body class="bg-gray-100 text-gray-800 p-2 sm:p-4 md:p-6">
 
-    <div class="w-full bg-white rounded-lg shadow-lg overflow-hidden">
+    <div class="w-full max-w-[1024px] mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
 
         <div class="p-3 md:p-4 bg-gray-50 border-b flex flex-col gap-3 lg:flex-row lg:justify-between lg:items-center">
-            <div>
+            <div class="flex items-baseline gap-3 flex-wrap">
                 <h1 class="text-lg md:text-xl font-bold">地平线车辆清单</h1>
-                <p id="collectionSummary" class="text-sm text-gray-600 mt-1">已收集：0 / 0</p>
+                <p id="collectionSummary" class="text-sm text-gray-600">已收集：0 / 0</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button id="toggleSortBtn"
@@ -57,11 +57,11 @@
                 </button>
                 <button onclick="exportData()"
                     class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-medium transition">
-                    导出进度
+                    导出数据
                 </button>
                 <label
                     class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium transition cursor-pointer">
-                    导入进度
+                    导入数据
                     <input type="file" id="importInput" accept=".json" class="hidden" onchange="importData(event)">
                 </label>
             </div>
@@ -83,7 +83,7 @@
                 </colgroup>
                 <thead>
                     <tr class="bg-gray-200 text-gray-600 text-xs sm:text-sm">
-                        <th class="p-2 md:p-3 border-b text-center">图片</th>
+                        <th class="p-2 md:p-3 border-b text-center">图片（点击可放大）</th>
                         <th class="p-2 md:p-3 border-b text-center">已获得</th>
                         <th class="p-2 md:p-3 border-b border-l border-gray-300">
                             <div class="flex items-center gap-1 flex-wrap">
@@ -124,6 +124,10 @@
         </div>
     </div>
 
+    <div id="imageModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 p-4 cursor-zoom-out">
+        <img id="imageModalPreview" src="" alt="" class="max-w-[95vw] max-h-[90vh] object-contain rounded shadow-2xl">
+    </div>
+
     <script>
         const rarityStyles = {
             '普通': 'bg-[#009b48] text-white',
@@ -136,9 +140,10 @@
 
         const LOCAL_STORAGE_KEY = 'fh_garage_data';
         let carsData = [];
-        let currentSortMode = 'EN';
+        let currentSortMode = 'ZH';
         let activeBrandFilters = new Set();
         let draftBrandFilters = new Set();
+        let currentPreviewSrc = '';
 
         const getScoreColor = (scoreStr = '') => {
             if (scoreStr.startsWith('D')) return 'text-blue-500';
@@ -155,11 +160,15 @@
             return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || {};
         }
 
+        function formatBrandForDisplay(brand) {
+            return String(brand || '').replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+        }
+
         function getOptimizedImageSrc(originalPath) {
             if (!originalPath) return '';
             const normalized = originalPath.replace(/^\.\//, '/');
-            // Cloudflare Image Resizing: 传输时按约 1/4 尺寸下发。
-            return `/cdn-cgi/image/width=96,quality=55,format=webp${normalized}`;
+            // Cloudflare Image Resizing: 传输时按约 1/8 尺寸下发。
+            return `/cdn-cgi/image/width=167,quality=94,format=webp${normalized}`;
         }
 
         function toggleCar(id, checked) {
@@ -230,7 +239,7 @@
                 return `
                     <label class="flex items-start gap-2 p-2 border rounded hover:bg-gray-50 cursor-pointer">
                         <input type="checkbox" class="mt-0.5 brand-filter-option" data-brand="${encodedBrand}" ${checked}>
-                        <span class="text-xs sm:text-sm brand-text">${brand}</span>
+                        <span class="text-xs sm:text-sm brand-text">${formatBrandForDisplay(brand)}</span>
                     </label>
                 `;
             }).join('');
@@ -293,7 +302,7 @@
                             <input type="checkbox" class="w-4 h-4 sm:w-5 sm:h-5 cursor-pointer accent-green-600 owned-checkbox"
                                 data-car-id="${encodedId}" ${isOwned ? 'checked' : ''}>
                         </td>
-                        <td class="p-2 md:p-3 border-l border-gray-300 brand-text">${car.brand}</td>
+                        <td class="p-2 md:p-3 border-l border-gray-300 brand-text">${formatBrandForDisplay(car.brand)}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300">${car.name || ''}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300 text-center">${car.year || ''}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300">${car.how_to_get || ''}</td>
@@ -380,6 +389,44 @@
                 toggleCar(carId, target.checked);
             }
         });
+
+        function openImageModal(originalSrc, altText) {
+            const imageModal = document.getElementById('imageModal');
+            const preview = document.getElementById('imageModalPreview');
+
+            if (currentPreviewSrc === originalSrc && imageModal.classList.contains('flex')) {
+                closeImageModal();
+                return;
+            }
+
+            currentPreviewSrc = originalSrc;
+            preview.setAttribute('src', originalSrc);
+            preview.setAttribute('alt', altText || '车辆原图');
+            imageModal.classList.remove('hidden');
+            imageModal.classList.add('flex');
+        }
+
+        function closeImageModal() {
+            const imageModal = document.getElementById('imageModal');
+            const preview = document.getElementById('imageModalPreview');
+            imageModal.classList.add('hidden');
+            imageModal.classList.remove('flex');
+            preview.setAttribute('src', '');
+            currentPreviewSrc = '';
+        }
+
+        document.getElementById('carTableBody').addEventListener('click', (event) => {
+            const target = event.target;
+            if (target.classList.contains('car-image')) {
+                const originalSrc = target.dataset.fallback;
+                openImageModal(originalSrc, target.getAttribute('alt'));
+            }
+        });
+
+        document.getElementById('imageModal').addEventListener('click', closeImageModal);
+        document.getElementById('imageModalPreview').addEventListener('click', closeImageModal);
+
+        document.getElementById('toggleSortBtn').innerText = '当前排序: 中文品牌排序';
 
         document.getElementById('brandOptions').addEventListener('change', (event) => {
             const target = event.target;
