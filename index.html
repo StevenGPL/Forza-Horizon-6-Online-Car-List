@@ -74,16 +74,17 @@
         <div class="overflow-x-auto no-scrollbar">
             <table class="car-table text-left border-collapse text-xs sm:text-sm">
                 <colgroup>
-                    <col style="width: 9%;">
-                    <col style="width: 6%;">
-                    <col style="width: 14%;">
-                    <col style="width: 15%;">
-                    <col style="width: 6%;">
-                    <col style="width: 19%;">
                     <col style="width: 8%;">
-                    <col style="width: 10%;">
                     <col style="width: 6%;">
+                    <col style="width: 12%;">
+                    <col style="width: 14%;">
+                    <col style="width: 5%;">
+                    <col style="width: 16%;">
+                    <col style="width: 14%;">
                     <col style="width: 7%;">
+                    <col style="width: 10%;">
+                    <col style="width: 5%;">
+                    <col style="width: 6%;">
                 </colgroup>
                 <thead>
                     <tr class="bg-gray-200 text-gray-600 text-xs sm:text-sm">
@@ -101,6 +102,15 @@
                         <th class="p-2 md:p-3 border-b border-l border-gray-300">车名</th>
                         <th class="p-2 md:p-3 border-b border-l border-gray-300 text-center">年份</th>
                         <th class="p-2 md:p-3 border-b border-l border-gray-300">获取方式</th>
+                        <th class="p-2 md:p-3 border-b border-l border-gray-300">
+                            <div class="flex items-center gap-1 flex-wrap">
+                                <span>车辆类型</span>
+                                <button id="carTypeFilterBtn"
+                                    class="px-2 py-1 text-[11px] sm:text-xs bg-indigo-500 hover:bg-indigo-600 text-white rounded">筛选</button>
+                                <button id="resetCarTypeFilterBtn"
+                                    class="px-2 py-1 text-[11px] sm:text-xs bg-gray-300 hover:bg-gray-400 text-gray-800 rounded">重置</button>
+                            </div>
+                        </th>
                         <th class="p-2 md:p-3 border-b border-l border-gray-300 text-right">价值 CR</th>
                         <th class="p-2 md:p-3 border-b border-l border-gray-300 text-center">稀有度</th>
                         <th class="p-2 md:p-3 border-b border-l border-gray-300 text-center">国籍</th>
@@ -123,6 +133,22 @@
                 <button id="cancelBrandFilterBtn"
                     class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded">取消</button>
                 <button id="applyBrandFilterBtn"
+                    class="px-3 py-2 text-sm bg-indigo-500 hover:bg-indigo-600 text-white rounded">提交</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="carTypeModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white w-full max-w-3xl rounded-lg shadow-xl p-4 sm:p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base sm:text-lg font-semibold">车辆类型筛选</h2>
+                <button id="closeCarTypeModalX" class="text-gray-500 hover:text-gray-700 text-xl leading-none">×</button>
+            </div>
+            <div id="carTypeOptions" class="grid grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto p-1"></div>
+            <div class="mt-4 flex justify-end gap-2">
+                <button id="cancelCarTypeFilterBtn"
+                    class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded">取消</button>
+                <button id="applyCarTypeFilterBtn"
                     class="px-3 py-2 text-sm bg-indigo-500 hover:bg-indigo-600 text-white rounded">提交</button>
             </div>
         </div>
@@ -166,9 +192,13 @@
 
         const LOCAL_STORAGE_KEY = 'fh_garage_data';
         let carsData = [];
+        let carTypeOrderData = [];
         let currentSortMode = 'ZH';
         let activeBrandFilters = new Set();
         let draftBrandFilters = new Set();
+        let activeCarTypeFilters = new Set();
+        let draftCarTypeFilters = new Set();
+        let carTypeOrderMap = new Map();
         let currentPreviewSrc = '';
 
         const getScoreColor = (scoreStr = '') => {
@@ -234,8 +264,11 @@
 
         function getVisibleCars() {
             const sorted = getSortedCars();
-            if (!activeBrandFilters.size) return sorted;
-            return sorted.filter((car) => activeBrandFilters.has(car.brand));
+            return sorted.filter((car) => {
+                const brandMatched = !activeBrandFilters.size || activeBrandFilters.has(car.brand);
+                const typeMatched = !activeCarTypeFilters.size || activeCarTypeFilters.has(car.car_type_cn || '');
+                return brandMatched && typeMatched;
+            });
         }
 
         function getSortedBrands() {
@@ -258,6 +291,26 @@
                     return a.zh_brand_order - b.zh_brand_order;
                 })
                 .map((item) => item.brand);
+        }
+
+        function buildCarTypeOrderMap() {
+            carTypeOrderMap = new Map();
+            carTypeOrderData.forEach((item, index) => {
+                const key = String(item.car_type_cn || '').trim();
+                if (!key) return;
+                const order = Number(item.car_type_order);
+                carTypeOrderMap.set(key, Number.isFinite(order) ? order : index + 1);
+            });
+        }
+
+        function getSortedCarTypes() {
+            const uniqueTypes = [...new Set(carsData.map((car) => String(car.car_type_cn || '').trim()).filter(Boolean))];
+            return uniqueTypes.sort((a, b) => {
+                const orderA = carTypeOrderMap.get(a) ?? Number.MAX_SAFE_INTEGER;
+                const orderB = carTypeOrderMap.get(b) ?? Number.MAX_SAFE_INTEGER;
+                if (orderA !== orderB) return orderA - orderB;
+                return a.localeCompare(b, 'zh-Hans-CN');
+            });
         }
 
         function updateCollectionSummary() {
@@ -284,12 +337,36 @@
             }).join('');
         }
 
+        function renderCarTypeFilterOptions() {
+            const container = document.getElementById('carTypeOptions');
+            const carTypes = getSortedCarTypes();
+            container.innerHTML = carTypes.map((type) => {
+                const checked = draftCarTypeFilters.has(type) ? 'checked' : '';
+                const encodedType = encodeURIComponent(type);
+                return `
+                    <label class="flex items-start gap-2 p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" class="mt-0.5 car-type-filter-option" data-car-type="${encodedType}" ${checked}>
+                        <span class="text-xs sm:text-sm">${type}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
         function toggleDraftBrandFilter(encodedBrand, checked) {
             const brand = decodeURIComponent(encodedBrand);
             if (checked) {
                 draftBrandFilters.add(brand);
             } else {
                 draftBrandFilters.delete(brand);
+            }
+        }
+
+        function toggleDraftCarTypeFilter(encodedCarType, checked) {
+            const carType = decodeURIComponent(encodedCarType);
+            if (checked) {
+                draftCarTypeFilters.add(carType);
+            } else {
+                draftCarTypeFilters.delete(carType);
             }
         }
 
@@ -305,6 +382,18 @@
             document.getElementById('brandModal').classList.remove('flex');
         }
 
+        function openCarTypeFilterModal() {
+            draftCarTypeFilters = new Set(activeCarTypeFilters);
+            renderCarTypeFilterOptions();
+            document.getElementById('carTypeModal').classList.remove('hidden');
+            document.getElementById('carTypeModal').classList.add('flex');
+        }
+
+        function closeCarTypeFilterModal() {
+            document.getElementById('carTypeModal').classList.add('hidden');
+            document.getElementById('carTypeModal').classList.remove('flex');
+        }
+
         function applyBrandFilter() {
             activeBrandFilters = new Set(draftBrandFilters);
             closeBrandFilterModal();
@@ -314,6 +403,18 @@
         function resetBrandFilter() {
             activeBrandFilters.clear();
             draftBrandFilters.clear();
+            renderTable();
+        }
+
+        function applyCarTypeFilter() {
+            activeCarTypeFilters = new Set(draftCarTypeFilters);
+            closeCarTypeFilterModal();
+            renderTable();
+        }
+
+        function resetCarTypeFilter() {
+            activeCarTypeFilters.clear();
+            draftCarTypeFilters.clear();
             renderTable();
         }
 
@@ -345,6 +446,7 @@
                         <td class="p-2 md:p-3 border-l border-gray-300">${car.name || ''}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300 text-center">${car.year || ''}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300">${car.how_to_get || ''}</td>
+                        <td class="p-2 md:p-3 border-l border-gray-300">${car.car_type_cn || ''}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300 text-right">${formatCrValue(car.cr)}</td>
                         <td class="p-2 md:p-3 border-l border-white border-r text-center ${rarityStyle} font-medium">${car.rarity || ''}</td>
                         <td class="p-2 md:p-3 border-l border-gray-300 text-center">${car.country || ''}</td>
@@ -354,7 +456,7 @@
             }).join('');
 
             if (!visibleCars.length) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-500">当前筛选条件下暂无车辆。</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-gray-500">当前筛选条件下暂无车辆。</td></tr>`;
             }
 
             updateCollectionSummary();
@@ -438,13 +540,18 @@
 
         async function initApp() {
             try {
-                const response = await fetch('./Cars.json');
-                if (!response.ok) throw new Error('网络响应失败');
-                carsData = await response.json();
+                const [carsResponse, carTypeResponse] = await Promise.all([
+                    fetch('./Cars.json'),
+                    fetch('./FH_Data.json')
+                ]);
+                if (!carsResponse.ok || !carTypeResponse.ok) throw new Error('网络响应失败');
+                carsData = await carsResponse.json();
+                carTypeOrderData = await carTypeResponse.json();
+                buildCarTypeOrderMap();
                 renderTable();
             } catch (error) {
                 console.error('加载车辆数据失败:', error);
-                document.getElementById('carTableBody').innerHTML = '<tr><td colspan="10" class="text-center p-4 text-red-500">无法加载车辆数据，请确保 Cars.json 存在。</td></tr>';
+                document.getElementById('carTableBody').innerHTML = '<tr><td colspan="11" class="text-center p-4 text-red-500">无法加载车辆数据，请确保 Cars.json / FH_Data.json 存在。</td></tr>';
             }
         }
 
@@ -462,6 +569,17 @@
         document.getElementById('brandModal').addEventListener('click', (event) => {
             if (event.target.id === 'brandModal') {
                 closeBrandFilterModal();
+            }
+        });
+
+        document.getElementById('carTypeFilterBtn').addEventListener('click', openCarTypeFilterModal);
+        document.getElementById('resetCarTypeFilterBtn').addEventListener('click', resetCarTypeFilter);
+        document.getElementById('applyCarTypeFilterBtn').addEventListener('click', applyCarTypeFilter);
+        document.getElementById('cancelCarTypeFilterBtn').addEventListener('click', closeCarTypeFilterModal);
+        document.getElementById('closeCarTypeModalX').addEventListener('click', closeCarTypeFilterModal);
+        document.getElementById('carTypeModal').addEventListener('click', (event) => {
+            if (event.target.id === 'carTypeModal') {
+                closeCarTypeFilterModal();
             }
         });
 
@@ -556,6 +674,13 @@
             const target = event.target;
             if (target.classList.contains('brand-filter-option')) {
                 toggleDraftBrandFilter(target.dataset.brand, target.checked);
+            }
+        });
+
+        document.getElementById('carTypeOptions').addEventListener('change', (event) => {
+            const target = event.target;
+            if (target.classList.contains('car-type-filter-option')) {
+                toggleDraftCarTypeFilter(target.dataset.carType, target.checked);
             }
         });
 
