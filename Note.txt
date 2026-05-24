@@ -1,0 +1,9 @@
+这是一个地平线 6 车辆收藏清单，你可以勾选已收藏车辆，
+数据存储在浏览器本地，如果换设备请记得导出数据
+
+数据和图片取自 https://forza.fandom.com/wiki/Forza_Horizon_6/Cars
+FZ官方也有车辆列表可看 https://forza.net/fh6cars
+部分本代新车暂无图片和详细资料，部分任务得车方式未翻译
+
+项目地址 https://github.com/StevenGPL/Forza-Horizon-6-Online-Car-List
+By XBOX ID：StevenGu1994 欢迎加好友一起玩，欢迎纠错
