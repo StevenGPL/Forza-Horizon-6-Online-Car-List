@@ -4,10 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地平线车辆收集库</title>
+    <title>地平线车辆清单</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 隐藏滚动条但保留滚动功能 */
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
@@ -16,26 +15,52 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+
+        .car-table {
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        .car-table th,
+        .car-table td {
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            vertical-align: middle;
+        }
+
+        .brand-text {
+            white-space: pre-line;
+        }
+
+        @media (max-width: 1024px) {
+            .car-table {
+                min-width: 1120px;
+            }
+        }
     </style>
 </head>
 
-<body class="bg-gray-100 text-gray-800 p-6">
+<body class="bg-gray-100 text-gray-800 p-2 sm:p-4 md:p-6">
 
-    <div class="max-w-[1400px] mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
+    <div class="w-full bg-white rounded-lg shadow-lg overflow-hidden">
 
-        <div class="p-4 bg-gray-50 border-b flex justify-between items-center">
-            <h1 class="text-xl font-bold">地平线车辆收集库</h1>
-            <div class="flex gap-4">
+        <div class="p-3 md:p-4 bg-gray-50 border-b flex flex-col gap-3 lg:flex-row lg:justify-between lg:items-center">
+            <div>
+                <h1 class="text-lg md:text-xl font-bold">地平线车辆清单</h1>
+                <p id="collectionSummary" class="text-sm text-gray-600 mt-1">已收集：0 / 0</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
                 <button id="toggleSortBtn"
-                    class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium transition">
+                    class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium transition">
                     当前排序: 英文品牌排序
                 </button>
                 <button onclick="exportData()"
-                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-medium transition">
+                    class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-medium transition">
                     导出进度
                 </button>
                 <label
-                    class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium transition cursor-pointer">
+                    class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium transition cursor-pointer">
                     导入进度
                     <input type="file" id="importInput" accept=".json" class="hidden" onchange="importData(event)">
                 </label>
@@ -43,40 +68,79 @@
         </div>
 
         <div class="overflow-x-auto no-scrollbar">
-            <table class="w-full text-left border-collapse whitespace-nowrap">
+            <table class="car-table text-left border-collapse text-xs sm:text-sm">
+                <colgroup>
+                    <col style="width: 9%;">
+                    <col style="width: 6%;">
+                    <col style="width: 14%;">
+                    <col style="width: 15%;">
+                    <col style="width: 6%;">
+                    <col style="width: 19%;">
+                    <col style="width: 8%;">
+                    <col style="width: 10%;">
+                    <col style="width: 6%;">
+                    <col style="width: 7%;">
+                </colgroup>
                 <thead>
-                    <tr class="bg-gray-200 text-gray-600 text-sm">
-                        <th class="p-3 border-b text-center w-32">图片</th>
-                        <th class="p-3 border-b text-center w-20">已获得</th>
-                        <th class="p-3 border-b border-l border-gray-300">品牌</th>
-                        <th class="p-3 border-b border-l border-gray-300">车名</th>
-                        <th class="p-3 border-b border-l border-gray-300 text-center">年份</th>
-                        <th class="p-3 border-b border-l border-gray-300">获取方式</th>
-                        <th class="p-3 border-b border-l border-gray-300 text-right">价值 CR</th>
-                        <th class="p-3 border-b border-l border-gray-300 text-center">稀有度</th>
-                        <th class="p-3 border-b border-l border-gray-300 text-center">国籍</th>
-                        <th class="p-3 border-b border-l border-gray-300 text-center">初始分</th>
+                    <tr class="bg-gray-200 text-gray-600 text-xs sm:text-sm">
+                        <th class="p-2 md:p-3 border-b text-center">图片</th>
+                        <th class="p-2 md:p-3 border-b text-center">已获得</th>
+                        <th class="p-2 md:p-3 border-b border-l border-gray-300">
+                            <div class="flex items-center gap-1 flex-wrap">
+                                <span>品牌</span>
+                                <button id="brandFilterBtn"
+                                    class="px-2 py-1 text-[11px] sm:text-xs bg-indigo-500 hover:bg-indigo-600 text-white rounded">筛选</button>
+                                <button id="resetBrandFilterBtn"
+                                    class="px-2 py-1 text-[11px] sm:text-xs bg-gray-300 hover:bg-gray-400 text-gray-800 rounded">重置</button>
+                            </div>
+                        </th>
+                        <th class="p-2 md:p-3 border-b border-l border-gray-300">车名</th>
+                        <th class="p-2 md:p-3 border-b border-l border-gray-300 text-center">年份</th>
+                        <th class="p-2 md:p-3 border-b border-l border-gray-300">获取方式</th>
+                        <th class="p-2 md:p-3 border-b border-l border-gray-300 text-right">价值 CR</th>
+                        <th class="p-2 md:p-3 border-b border-l border-gray-300 text-center">稀有度</th>
+                        <th class="p-2 md:p-3 border-b border-l border-gray-300 text-center">国籍</th>
+                        <th class="p-2 md:p-3 border-b border-l border-gray-300 text-center">初始分</th>
                     </tr>
                 </thead>
-                <tbody id="carTableBody">
-                </tbody>
+                <tbody id="carTableBody"></tbody>
             </table>
         </div>
     </div>
 
+    <div id="brandModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white w-full max-w-3xl rounded-lg shadow-xl p-4 sm:p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base sm:text-lg font-semibold">品牌筛选</h2>
+                <button id="closeBrandModalX" class="text-gray-500 hover:text-gray-700 text-xl leading-none">×</button>
+            </div>
+            <div id="brandOptions" class="grid grid-cols-5 gap-2 max-h-[50vh] overflow-y-auto p-1"></div>
+            <div class="mt-4 flex justify-end gap-2">
+                <button id="cancelBrandFilterBtn"
+                    class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded">取消</button>
+                <button id="applyBrandFilterBtn"
+                    class="px-3 py-2 text-sm bg-indigo-500 hover:bg-indigo-600 text-white rounded">提交</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // --- 1. 配置与枚举 ---
-        // 稀有度背景色映射
         const rarityStyles = {
             '普通': 'bg-[#009b48] text-white',
             '稀有': 'bg-[#0092d6] text-white',
             '史诗': 'bg-[#68339b] text-white',
             '传说': 'bg-[#eab308] text-white',
-            '极限竞速特别版': 'bg-gradient-to-r from-[#88189c] to-[#0168b4] text-white' // 渐变色实现
+            '传奇': 'bg-[#eab308] text-white',
+            '极限竞速特别版': 'bg-gradient-to-r from-[#88189c] to-[#0168b4] text-white'
         };
 
-        // 初始分文字颜色映射
-        const getScoreColor = (scoreStr) => {
+        const LOCAL_STORAGE_KEY = 'fh_garage_data';
+        let carsData = [];
+        let currentSortMode = 'EN';
+        let activeBrandFilters = new Set();
+        let draftBrandFilters = new Set();
+
+        const getScoreColor = (scoreStr = '') => {
             if (scoreStr.startsWith('D')) return 'text-blue-500';
             if (scoreStr.startsWith('C')) return 'text-yellow-400';
             if (scoreStr.startsWith('B')) return 'text-orange-400';
@@ -87,48 +151,28 @@
             return 'text-gray-700';
         };
 
-        // --- 2. 数据源 ---
-        let carsData = [];
-
-        // --- 初始化与获取数据 ---
-        async function initApp() {
-            try {
-                const response = await fetch('./Cars.json');
-                if (!response.ok) throw new Error('网络响应失败');
-                carsData = await response.json();
-                renderTable();
-            } catch (error) {
-                console.error("加载车辆数据失败:", error);
-                document.getElementById('carTableBody').innerHTML = `<tr><td colspan="10" class="text-center p-4 text-red-500">无法加载车辆数据，请确保 Cars.json 存在。</td></tr>`;
-            }
-        }
-
-        // 启动应用
-        initApp();
-
-        // --- 3. 核心状态 ---
-        let currentSortMode = 'EN'; // 'EN' 或 'ZH'
-        const LOCAL_STORAGE_KEY = 'fh_garage_data';
-
-        // --- 4. 逻辑控制 ---
-
-        // 获取本地存储的用户数据
         function getUserData() {
             return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || {};
         }
 
-        // 切换复选框状态
+        function getOptimizedImageSrc(originalPath) {
+            if (!originalPath) return '';
+            const normalized = originalPath.replace(/^\.\//, '/');
+            // Cloudflare Image Resizing: 传输时按约 1/4 尺寸下发。
+            return `/cdn-cgi/image/width=96,quality=55,format=webp${normalized}`;
+        }
+
         function toggleCar(id, checked) {
             const userData = getUserData();
             if (checked) {
                 userData[id] = { owned: true };
             } else {
-                delete userData[id]; // 未拥有则删除以节省空间
+                delete userData[id];
             }
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userData));
+            updateCollectionSummary();
         }
 
-        // 排序逻辑
         function getSortedCars() {
             return [...carsData].sort((a, b) => {
                 if (currentSortMode === 'EN') {
@@ -136,66 +180,151 @@
                 } else {
                     if (a.zh_brand_order !== b.zh_brand_order) return a.zh_brand_order - b.zh_brand_order;
                 }
-                // 品牌内排序
                 return a.brand_internal_order - b.brand_internal_order;
             });
         }
 
-        // 渲染表格
-        function renderTable() {
-            const tbody = document.getElementById('carTableBody');
-            const sortedCars = getSortedCars();
+        function getVisibleCars() {
+            const sorted = getSortedCars();
+            if (!activeBrandFilters.size) return sorted;
+            return sorted.filter((car) => activeBrandFilters.has(car.brand));
+        }
+
+        function getSortedBrands() {
+            const map = new Map();
+            carsData.forEach((car) => {
+                if (!map.has(car.brand)) {
+                    map.set(car.brand, {
+                        brand: car.brand,
+                        en_brand_order: car.en_brand_order,
+                        zh_brand_order: car.zh_brand_order
+                    });
+                }
+            });
+
+            return [...map.values()]
+                .sort((a, b) => {
+                    if (currentSortMode === 'EN') {
+                        return a.en_brand_order - b.en_brand_order;
+                    }
+                    return a.zh_brand_order - b.zh_brand_order;
+                })
+                .map((item) => item.brand);
+        }
+
+        function updateCollectionSummary() {
             const userData = getUserData();
+            const total = carsData.length;
+            const owned = carsData.reduce((count, car) => {
+                return count + (userData[car.id]?.owned ? 1 : 0);
+            }, 0);
+            document.getElementById('collectionSummary').innerText = `已收集：${owned} / ${total}`;
+        }
 
-            tbody.innerHTML = sortedCars.map((car, index) => {
-                const isOwned = userData[car.id]?.owned || false;
-                const rowBg = index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100/50';
-                const scoreColor = getScoreColor(car.initial_score);
-                const rarityStyle = rarityStyles[car.rarity] || 'bg-gray-400 text-white';
-
+        function renderBrandFilterOptions() {
+            const container = document.getElementById('brandOptions');
+            const brands = getSortedBrands();
+            container.innerHTML = brands.map((brand) => {
+                const checked = draftBrandFilters.has(brand) ? 'checked' : '';
+                const encodedBrand = encodeURIComponent(brand);
                 return `
-                    <tr class="border-b ${rowBg} hover:bg-gray-100 transition">
-                        <td class="p-2 text-center"><img src="${car.image}" alt="${car.name}" class="w-24 h-auto mx-auto drop-shadow-md"></td>
-                        <td class="p-3 text-center border-l border-gray-300">
-                            <input type="checkbox" class="w-5 h-5 cursor-pointer accent-green-600" 
-                                ${isOwned ? 'checked' : ''} 
-                                onchange="toggleCar('${car.id}', this.checked)">
-                        </td>
-                        <td class="p-3 border-l border-gray-300">${car.brand}</td>
-                        <td class="p-3 border-l border-gray-300">${car.name}</td>
-                        <td class="p-3 border-l border-gray-300 text-center">${car.year}</td>
-                        <td class="p-3 border-l border-gray-300">${car.how_to_get}</td>
-                        <td class="p-3 border-l border-gray-300 text-right">${car.cr}</td>
-                        <td class="p-3 border-l border-white border-r text-center ${rarityStyle} font-medium">${car.rarity}</td>
-                        <td class="p-3 border-l border-gray-300 text-center">${car.country}</td>
-                        <td class="p-3 border-l border-gray-300 text-center font-bold ${scoreColor}">${car.initial_score}</td>
-                    </tr>
+                    <label class="flex items-start gap-2 p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" class="mt-0.5 brand-filter-option" data-brand="${encodedBrand}" ${checked}>
+                        <span class="text-xs sm:text-sm brand-text">${brand}</span>
+                    </label>
                 `;
             }).join('');
         }
 
-        // 切换排序模式
-        document.getElementById('toggleSortBtn').addEventListener('click', (e) => {
-            currentSortMode = currentSortMode === 'EN' ? 'ZH' : 'EN';
-            e.target.innerText = `当前排序: ${currentSortMode === 'EN' ? '英文' : '中文'}品牌排序`;
-            renderTable();
-        });
+        function toggleDraftBrandFilter(encodedBrand, checked) {
+            const brand = decodeURIComponent(encodedBrand);
+            if (checked) {
+                draftBrandFilters.add(brand);
+            } else {
+                draftBrandFilters.delete(brand);
+            }
+        }
 
-        // 导出数据
+        function openBrandFilterModal() {
+            draftBrandFilters = new Set(activeBrandFilters);
+            renderBrandFilterOptions();
+            document.getElementById('brandModal').classList.remove('hidden');
+            document.getElementById('brandModal').classList.add('flex');
+        }
+
+        function closeBrandFilterModal() {
+            document.getElementById('brandModal').classList.add('hidden');
+            document.getElementById('brandModal').classList.remove('flex');
+        }
+
+        function applyBrandFilter() {
+            activeBrandFilters = new Set(draftBrandFilters);
+            closeBrandFilterModal();
+            renderTable();
+        }
+
+        function resetBrandFilter() {
+            activeBrandFilters.clear();
+            draftBrandFilters.clear();
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('carTableBody');
+            const visibleCars = getVisibleCars();
+            const userData = getUserData();
+
+            tbody.innerHTML = visibleCars.map((car, index) => {
+                const isOwned = userData[car.id]?.owned || false;
+                const rowBg = index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100/50';
+                const scoreColor = getScoreColor(car.initial_score || '');
+                const rarityStyle = rarityStyles[car.rarity] || 'bg-gray-400 text-white';
+                const optimizedImage = getOptimizedImageSrc(car.image);
+                const fallbackImage = car.image;
+                const encodedId = encodeURIComponent(car.id);
+
+                return `
+                    <tr class="border-b ${rowBg} hover:bg-gray-100 transition">
+                        <td class="p-1 sm:p-2 text-center">
+                            <img src="${optimizedImage}" alt="${car.name}" loading="lazy" data-fallback="${fallbackImage}"
+                                class="w-20 sm:w-24 h-auto mx-auto drop-shadow-md car-image">
+                        </td>
+                        <td class="p-2 md:p-3 text-center border-l border-gray-300">
+                            <input type="checkbox" class="w-4 h-4 sm:w-5 sm:h-5 cursor-pointer accent-green-600 owned-checkbox"
+                                data-car-id="${encodedId}" ${isOwned ? 'checked' : ''}>
+                        </td>
+                        <td class="p-2 md:p-3 border-l border-gray-300 brand-text">${car.brand}</td>
+                        <td class="p-2 md:p-3 border-l border-gray-300">${car.name || ''}</td>
+                        <td class="p-2 md:p-3 border-l border-gray-300 text-center">${car.year || ''}</td>
+                        <td class="p-2 md:p-3 border-l border-gray-300">${car.how_to_get || ''}</td>
+                        <td class="p-2 md:p-3 border-l border-gray-300 text-right">${car.cr ?? ''}</td>
+                        <td class="p-2 md:p-3 border-l border-white border-r text-center ${rarityStyle} font-medium">${car.rarity || ''}</td>
+                        <td class="p-2 md:p-3 border-l border-gray-300 text-center">${car.country || ''}</td>
+                        <td class="p-2 md:p-3 border-l border-gray-300 text-center font-bold ${scoreColor}">${car.initial_score || ''}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            if (!visibleCars.length) {
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-500">当前筛选条件下暂无车辆。</td></tr>`;
+            }
+
+            updateCollectionSummary();
+        }
+
         function exportData() {
-            const data = localStorage.getItem(LOCAL_STORAGE_KEY) || "{}";
-            const blob = new Blob([data], { type: "application/json" });
+            const data = localStorage.getItem(LOCAL_STORAGE_KEY) || '{}';
+            const blob = new Blob([data], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
+            const a = document.createElement('a');
             a.href = url;
-            a.download = "fh_garage_backup.json";
+            a.download = 'fh_garage_backup.json';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
 
-        // 导入数据
         function importData(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -206,18 +335,70 @@
                     const parsed = JSON.parse(e.target.result);
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
                     renderTable();
-                    alert("数据导入成功！");
+                    alert('数据导入成功！');
                 } catch (error) {
-                    alert("文件格式错误，导入失败！");
+                    alert('文件格式错误，导入失败！');
                 }
-                event.target.value = ''; // 清除文件选择，允许重复导入同一文件
+                event.target.value = '';
             };
             reader.readAsText(file);
         }
 
-        // 初始化
-        // 实际场景下，你需要在这里写 fetch('data/cars.json').then(...) 来替换 mock 的 carsData
-        renderTable();
+        async function initApp() {
+            try {
+                const response = await fetch('./Cars.json');
+                if (!response.ok) throw new Error('网络响应失败');
+                carsData = await response.json();
+                renderTable();
+            } catch (error) {
+                console.error('加载车辆数据失败:', error);
+                document.getElementById('carTableBody').innerHTML = '<tr><td colspan="10" class="text-center p-4 text-red-500">无法加载车辆数据，请确保 Cars.json 存在。</td></tr>';
+            }
+        }
+
+        document.getElementById('toggleSortBtn').addEventListener('click', (e) => {
+            currentSortMode = currentSortMode === 'EN' ? 'ZH' : 'EN';
+            e.target.innerText = `当前排序: ${currentSortMode === 'EN' ? '英文' : '中文'}品牌排序`;
+            renderTable();
+        });
+
+        document.getElementById('brandFilterBtn').addEventListener('click', openBrandFilterModal);
+        document.getElementById('resetBrandFilterBtn').addEventListener('click', resetBrandFilter);
+        document.getElementById('applyBrandFilterBtn').addEventListener('click', applyBrandFilter);
+        document.getElementById('cancelBrandFilterBtn').addEventListener('click', closeBrandFilterModal);
+        document.getElementById('closeBrandModalX').addEventListener('click', closeBrandFilterModal);
+        document.getElementById('brandModal').addEventListener('click', (event) => {
+            if (event.target.id === 'brandModal') {
+                closeBrandFilterModal();
+            }
+        });
+
+        document.getElementById('carTableBody').addEventListener('change', (event) => {
+            const target = event.target;
+            if (target.classList.contains('owned-checkbox')) {
+                const carId = decodeURIComponent(target.dataset.carId);
+                toggleCar(carId, target.checked);
+            }
+        });
+
+        document.getElementById('brandOptions').addEventListener('change', (event) => {
+            const target = event.target;
+            if (target.classList.contains('brand-filter-option')) {
+                toggleDraftBrandFilter(target.dataset.brand, target.checked);
+            }
+        });
+
+        document.addEventListener('error', (event) => {
+            const target = event.target;
+            if (target && target.classList && target.classList.contains('car-image')) {
+                const fallback = target.dataset.fallback;
+                if (fallback && target.getAttribute('src') !== fallback) {
+                    target.setAttribute('src', fallback);
+                }
+            }
+        }, true);
+
+        initApp();
     </script>
 </body>
 
